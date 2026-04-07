@@ -1,0 +1,3 @@
+[2026-04-07 15:08:46] BLOCKED | reason=RULE_INSTALL | src=10.0.0.3 | dst=N/A | IP block rule installed at startup
+[2026-04-07 15:08:46] BLOCKED | reason=MAC | src=00:00:00:00:00:03 | dst=33:33:00:00:00:16 | 
+[2026-04-07 15:12:45] BLOCKED | reason=RULE_INSTALL | src=10.0.0.3 | dst=N/A | IP block rule installed at startup
