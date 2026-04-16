@@ -309,6 +309,8 @@ python pox.py log.level --DEBUG ../controller/firewall.py forwarding.l2_learning
 ## Reference Documentation
 
 - [SETUP.md](SETUP.md) - Installation guide
+- [PRESENTATION_GUIDE.md](PRESENTATION_GUIDE.md) - **How to run & present the demo** ⭐
+- [IMPLEMENTATION_REPORT.md](IMPLEMENTATION_REPORT.md) - Requirement verification
 - [results/TEST_RESULTS.md](results/TEST_RESULTS.md) - Detailed test results
 - [results/allowed_ping.txt](results/allowed_ping.txt) - Successful ping output
 - [results/blocked_ping.txt](results/blocked_ping.txt) - Failed ping output
