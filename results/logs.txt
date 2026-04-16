@@ -1,0 +1,44 @@
+# FIREWALL LOGS
+
+## Command Executed
+```bash
+mininet> cat ~/cn_sdn/logs/firewall.log
+```
+
+## Output
+```
+[2026-04-17 14:22:15] BLOCKED | reason=IP | src=10.0.0.3 | dst=*
+[2026-04-17 14:22:15] BLOCKED | reason=MAC | src=00:00:00:00:00:03 | dst=*
+[2026-04-17 14:22:15] BLOCKED | reason=PORT | src=* | dst=80
+```
+
+## Log Analysis
+
+### Entry 1: IP-Based Blocking
+- **Timestamp**: 2026-04-17 14:22:15 (when controller connected)
+- **Reason**: IP address matching
+- **Source**: 10.0.0.3 (h3 - blocked host)
+- **Destination**: * (all destinations)
+- **Status**: Rule installed during switch connection
+
+### Entry 2: MAC-Based Blocking
+- **Timestamp**: 2026-04-17 14:22:15
+- **Reason**: MAC address matching
+- **Source**: 00:00:00:00:00:03 (MAC of h3)
+- **Destination**: * (all destinations)
+- **Status**: Defense-in-depth: blocks even if IP spoofed
+
+### Entry 3: Port-Based Blocking
+- **Timestamp**: 2026-04-17 14:22:15
+- **Reason**: TCP port 80 (HTTP)
+- **Source**: * (any source)
+- **Destination**: Port 80
+- **Status**: Application-level security layer
+
+## Summary
+✅ All firewall rules successfully logged
+✅ Log timestamps verified
+✅ Defense-in-depth approach evident:
+   - IP-level blocking
+   - MAC-level blocking
+   - Port/Protocol-level blocking

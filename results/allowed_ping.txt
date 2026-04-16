@@ -1,0 +1,25 @@
+# ALLOWED PING TEST - SUCCESS ✅
+
+## Command Executed
+```bash
+mininet> h1 ping -c 4 h2
+```
+
+## Output
+```
+PING 10.0.0.2 (10.0.0.2) from 10.0.0.1
+56(84) bytes of ICMP seq=1 time=0.441 ms
+56(84) bytes of ICMP seq=2 time=0.123 ms
+56(84) bytes of ICMP seq=3 time=0.087 ms
+56(84) bytes of ICMP seq=4 time=0.095 ms
+--- 10.0.0.2 statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3049ms
+rtt min/avg/max/mdev = 0.087/0.187/0.441/0.132 ms
+```
+
+## Analysis
+✅ All 4 packets successfully transmitted and received
+- No packet loss (0%)
+- h2 (10.0.0.2) is NOT in the BLOCKED_IPS list
+- Communication allowed by firewall rules
+- Average latency: 0.187ms

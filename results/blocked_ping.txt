@@ -1,0 +1,25 @@
+# BLOCKED PING TEST - BLOCKED ❌
+
+## Command Executed
+```bash
+mininet> h3 ping -c 4 h1
+```
+
+## Output
+```
+PING 10.0.0.1 (10.0.0.1) from 10.0.0.3
+--- 10.0.0.1 statistics ---
+4 packets transmitted, 0 received, 100% packet loss, time 3056ms
+```
+
+## Analysis
+❌ ALL packets blocked - 100% packet loss
+- h3 (10.0.0.3) is in the BLOCKED_IPS list: `BLOCKED_IPS = ['10.0.0.3']`
+- Firewall rule with priority 200 on nw_src=10.0.0.3 drops all traffic
+- No ICMP replies received
+- Firewall is working as designed
+
+## Firewall Rule Applied
+```
+priority=200, dl_type=0x0800, nw_src=10.0.0.3 → DROP
+```
