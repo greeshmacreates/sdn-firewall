@@ -18,25 +18,83 @@ from pox.lib.util import dpid_to_str
 import pox.openflow.libopenflow_01 as of
 from datetime import datetime
 import os
+import sys
 
 log = core.getLogger()
 
-from controller.rules import BLOCKED_IPS, BLOCKED_MACS, BLOCKED_PORTS
+from rules import BLOCKED_IPS, BLOCKED_MACS, BLOCKED_PORTS
 
-LOG_FILE = os.path.expanduser("~/cn_sdn/logs/firewall.log")
+# ═══════════════════════════════════════════════════════════════════
+# LOGGING CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
 
-def write_log(reason, src, dst, action="BLOCKED"):
-    """Log blocked packet information with timestamp"""
+# Try multiple log file paths
+LOG_PATHS = [
+    os.path.expanduser("~/cn_sdn/logs/firewall.log"),
+    "/mnt/c/Users/Greeshma/cn_sdn/logs/firewall.log",
+    "/root/cn_sdn/logs/firewall.log",
+    "./firewall.log"
+]
+
+LOG_FILE = None
+
+def setup_log_file():
+    """Find and setup the log file"""
+    global LOG_FILE
+    
+    for path in LOG_PATHS:
+        try:
+            # Create directory if needed
+            log_dir = os.path.dirname(path)
+            if log_dir and not os.path.exists(log_dir):
+                os.makedirs(log_dir, exist_ok=True)
+            
+            # Test if we can write to this path
+            with open(path, 'a') as f:
+                f.write("")
+            
+            LOG_FILE = path
+            log.info(f"✓ Log file configured: {LOG_FILE}")
+            return path
+        except Exception as e:
+            continue
+    
+    # Fallback to current directory
+    LOG_FILE = "./firewall.log"
+    log.warning(f"Using fallback log path: {LOG_FILE}")
+    return LOG_FILE
+
+def write_log(reason, src, dst, action="BLOCKED", packet_info=""):
+    """
+    Log blocked packet information with timestamp
+    
+    Args:
+        reason: Type of rule (IP, MAC, PORT)
+        src: Source (IP or MAC)
+        dst: Destination (IP, port, or *)
+        action: Log action type (BLOCKED, DROPPED, ALLOWED)
+        packet_info: Additional packet details
+    """
+    if not LOG_FILE:
+        setup_log_file()
+    
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    line = f"[{ts}] {action:8} | rule={reason:6} | src={src:15} | dst={dst:15}\n"
+    
+    # Format: [timestamp] ACTION | rule=TYPE | src=SOURCE | dst=DESTINATION | extra_info
+    line = f"[{ts}] {action:8} | rule={reason:6} | src={src:15} | dst={dst:15}"
+    
+    if packet_info:
+        line += f" | info={packet_info}"
+    
+    line += "\n"
     
     try:
         with open(LOG_FILE, 'a') as f:
             f.write(line)
+        log.warning(line.strip())
     except Exception as e:
-        log.error(f"Failed to write log: {e}")
-    
-    log.warning(line.strip())
+        log.error(f"✗ Failed to write log: {e}")
+        sys.stderr.write(f"[LOG ERROR] {e}\n")
 
 def install_drop_rule(connection, priority, match_criteria, reason, src, dst):
     """Install a DROP rule at the switch"""
@@ -98,25 +156,69 @@ def _handle_ConnectionUp(event):
     log.info("")
 
 def _handle_PacketIn(event):
-    """Handle packet-in events (for learning and debugging)"""
+    """
+    Handle packet-in events for monitoring blocked traffic
+    
+    This function is called when a packet reaches the controller:
+    - Logs packets from blocked hosts
+    - Logs packets destined to blocked ports
+    - Provides audit trail of blocked attempted communications
+    """
     packet = event.parsed
     
-    if packet.find('ipv4'):
-        src_ip = packet.find('ipv4').srcip
-        dst_ip = packet.find('ipv4').dstip
+    try:
+        # Check Ethernet header
+        src_mac = str(packet.src) if hasattr(packet, 'src') else "unknown"
+        dst_mac = str(packet.dst) if hasattr(packet, 'dst') else "unknown"
         
-        # Check if this is a blocked IP trying to send
-        if str(src_ip) in BLOCKED_IPS:
-            log.warning(f"[BLOCKED] Packet from blocked IP: {src_ip} → {dst_ip}")
-            write_log("IP", str(src_ip), str(dst_ip), "DROPPED")
+        # Check if blocked by MAC
+        if src_mac in BLOCKED_MACS:
+            log.warning(f"[PACKET BLOCKED] MAC {src_mac} attempted packet")
+            write_log("MAC", src_mac, dst_mac, "DROPPED", f"Layer2_blocked")
+        
+        # Check IP layer
+        if packet.find('ipv4'):
+            ipv4 = packet.find('ipv4')
+            src_ip = str(ipv4.srcip)
+            dst_ip = str(ipv4.dstip)
+            protocol = ipv4.protocol
+            
+            # Log blocked source IP
+            if src_ip in BLOCKED_IPS:
+                log.warning(f"[PACKET BLOCKED] IP {src_ip} → {dst_ip} (protocol: {protocol})")
+                write_log("IP", src_ip, dst_ip, "DROPPED", f"Protocol_{protocol}")
+            
+            # Check TCP layer for blocked ports
+            if protocol == 6:  # TCP
+                tcp = packet.find('tcp')
+                if tcp:
+                    dst_port = tcp.dstport
+                    if dst_port in BLOCKED_PORTS:
+                        log.warning(f"[PACKET BLOCKED] Port {dst_port} access from {src_ip}")
+                        write_log("PORT", src_ip, f"tcp:{dst_port}", "DROPPED", f"Port_blocked")
+    
+    except Exception as e:
+        log.error(f"Error in packet-in handler: {e}")
 
 def launch():
     """Launch the firewall controller"""
+    # Setup logging first
+    setup_log_file()
+    
     log.info("")
     log.info("╔════════════════════════════════════════╗")
     log.info("║  🔥 SDN FIREWALL CONTROLLER STARTED  ║")
     log.info("║  POX-Based Rule Engine                ║")
     log.info("╚════════════════════════════════════════╝")
+    log.info("")
+    
+    # Write startup message to log
+    write_log("INIT", "controller", "system", "STARTED", "Firewall_controller_initialized")
+    
+    # Log configuration
+    log.info(f"Blocked IPs: {BLOCKED_IPS}")
+    log.info(f"Blocked MACs: {BLOCKED_MACS}")
+    log.info(f"Blocked Ports: {BLOCKED_PORTS}")
     log.info("")
     
     # Register handlers
